@@ -74,7 +74,6 @@ function fanCardStyle(index: number, total: number, selected: boolean): CSSPrope
 }
 
 function App() {
-  const [seedInput, setSeedInput] = useState(DEFAULT_SEED)
   const [playerCount, setPlayerCount] = useState(2)
   const [selectedRegion, setSelectedRegion] = useState(DEFAULT_REGION)
   const [selectedPrefecture, setSelectedPrefecture] = useState(DEFAULT_PREFECTURE)
@@ -89,6 +88,7 @@ function App() {
   const [reactionPopup, setReactionPopup] = useState<{ agentId: string; message: string; tone: JudgeReactionTone } | null>(null)
   const [reactionBurst, setReactionBurst] = useState<string | null>(null)
   const [reactionTone, setReactionTone] = useState<JudgeReactionTone>('neutral')
+  const [turnStartMessage, setTurnStartMessage] = useState<string | null>(null)
   const [enteringCharacterIds, setEnteringCharacterIds] = useState<string[]>([])
   const previousFieldIdsRef = useRef<string[]>([])
 
@@ -227,6 +227,27 @@ function App() {
     }
   }, [state.lastPlacementCheer?.id, state.lastJudgeReaction])
 
+  // 審査員リアクション終了後にターン開始演出を表示
+  const previousJudgeReactionRef = useRef<typeof state.lastJudgeReaction>(state.lastJudgeReaction)
+
+  useEffect(() => {
+    const hadReaction = previousJudgeReactionRef.current !== null
+    const reactionEnded = state.lastJudgeReaction === null
+
+    if (hadReaction && reactionEnded) {
+      const lastLog = state.logs[0]
+      if (lastLog && lastLog.action === 'system' && lastLog.message.includes('のターン')) {
+        setTurnStartMessage(lastLog.message)
+        const timer = window.setTimeout(() => {
+          setTurnStartMessage(null)
+        }, 2000)
+        return () => window.clearTimeout(timer)
+      }
+    }
+
+    previousJudgeReactionRef.current = state.lastJudgeReaction
+  }, [state.lastJudgeReaction, state.logs[0]?.id])
+
   const actionMessage = selectedWhere && selectedDescriptor
     ? pairValid
       ? '配置可能です。置きたいゆるキャラをクリックしてください。'
@@ -240,10 +261,11 @@ function App() {
   const rankedPlayers = [...state.players].sort((a, b) => b.score - a.score)
 
   const resetGame = (showTutorial = true) => {
+    const randomSeed = `yuru-${Math.random().toString(36).slice(2, 8)}-${Date.now().toString(36).slice(-4)}`
     dispatch({
       type: 'RESET_GAME',
       payload: {
-        seed: seedInput || DEFAULT_SEED,
+        seed: randomSeed,
         playerCount,
         prefecture: selectedPrefecture,
       },
@@ -258,12 +280,6 @@ function App() {
     setReactionBurst(null)
   }
 
-  const randomizeSeed = () => {
-    const randomPart = Math.random().toString(36).slice(2, 8)
-    const timePart = Date.now().toString(36).slice(-4)
-    setSeedInput(`yuru-${randomPart}-${timePart}`)
-  }
-
   const backToStartScreen = () => {
     setShowStartScreen(true)
     setShowGameTutorial(false)
@@ -274,6 +290,7 @@ function App() {
     setCheerBanner(null)
     setReactionPopup(null)
     setReactionBurst(null)
+    setTurnStartMessage(null)
   }
 
   const startGame = () => {
@@ -364,6 +381,7 @@ function App() {
 
       {cheerBanner && <div className="fx-banner fx-cheer">{cheerBanner}</div>}
       {reactionBurst && <div className={`fx-banner fx-reaction tone-${reactionTone}`}>{reactionBurst}</div>}
+      {turnStartMessage && <div className="fx-banner fx-turn-start">{turnStartMessage}</div>}
       {state.gameOver && (
         <section className="gameover-overlay" role="dialog" aria-modal="true" aria-label="ゲーム終了">
           <div className="gameover-card">
@@ -404,20 +422,6 @@ function App() {
             <section className="settings-popover">
               <h2>ゲーム設定</h2>
               <div className="controls">
-                <label>
-                  Seed
-                  <div className="seed-input-row">
-                    <input value={seedInput} onChange={(e) => setSeedInput(e.target.value)} />
-                    <button
-                      type="button"
-                      className="seed-random-button"
-                      onClick={randomizeSeed}
-                      aria-label="Seedをランダム生成"
-                    >
-                      🎲
-                    </button>
-                  </div>
-                </label>
                 <label>
                   プレイヤー数
                   <select value={playerCount} onChange={(e) => setPlayerCount(Number(e.target.value))}>
@@ -505,6 +509,17 @@ function App() {
                   disabled={state.gameOver || state.usedEscapeThisTurn || inOverflowDiscardMode}
                 >
                   -1ptして2ドロー
+                </button>
+
+                <button
+                  onClick={() => {
+                    dispatch({ type: 'REFRESH_HAND' })
+                    setSelectedWhereId(null)
+                    setSelectedDescriptorId(null)
+                  }}
+                  disabled={state.gameOver || state.usedEscapeThisTurn || inOverflowDiscardMode}
+                >
+                  -2ptして手札入れ替え
                 </button>
 
                 {inOverflowDiscardMode && (

@@ -122,6 +122,28 @@ function drawInitialHand(state: GameState): AnnotationCard[] {
   return hand
 }
 
+function drawBalancedRefreshHand(state: GameState): AnnotationCard[] {
+  const hand: AnnotationCard[] = []
+
+  for (let i = 0; i < STARTING_WHERE_CARDS; i += 1) {
+    const card = drawCardByType(state, 'where', `refresh-where-${i}`)
+    if (!card) {
+      break
+    }
+    hand.push(card)
+  }
+
+  for (let i = 0; i < STARTING_DESCRIPTOR_CARDS; i += 1) {
+    const card = drawCardByType(state, 'descriptor', `refresh-desc-${i}`)
+    if (!card) {
+      break
+    }
+    hand.push(card)
+  }
+
+  return hand
+}
+
 function getPlayer(state: GameState): PlayerState {
   return state.players[state.currentPlayerIndex]
 }
@@ -222,7 +244,7 @@ function buildJudgeReaction(judge: Agent, descriptor: DescriptorCard, naturalnes
   if (judge.dislike === descriptor.category) {
     return {
       agentId: judge.id,
-      message: 'うーん．．．',
+      message: 'まあまあ',
       tone: 'dislike',
     }
   }
@@ -270,14 +292,6 @@ function advanceTurn(state: GameState) {
         message: `ゲーム終了。最高得点は ${max} 点。`,
       })
       return
-    }
-    const nextPrefecture = state.roundPrefectures[state.round - 1]
-    const prefectureChanged = state.currentPrefecture !== nextPrefecture
-    state.currentPrefecture = nextPrefecture
-
-    if (prefectureChanged) {
-      state.fieldCharacters = []
-      refillCharacterField(state)
     }
   } else {
     state.currentPlayerIndex += 1
@@ -435,9 +449,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return state
     }
 
-    player.score -= 1
     player.hand.push(...drawCards(nextState, 2))
-    nextState.pendingOverflowDiscard = getOverflowCount(nextState, player)
+    nextState.pendingOverflowDiscard = Math.min(2, player.hand.length)
 
     nextState.logs.unshift({
       id: `log-${nextState.logs.length + 1}`,
@@ -445,7 +458,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       playerName: player.name,
       judgeName: nextState.currentJudge.name,
       action: 'escape',
-      message: `${player.name}は-1ptして2ドロー。`,
+      message: `${player.name}は2ドローして、入れ替える2枚を選択中。`,
     })
 
     nextState.usedEscapeThisTurn = true
@@ -459,10 +472,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return state
     }
 
-    player.score -= 2
-    const replacedCount = player.hand.length
+    player.score -= 1
     nextState.discardPile.push(...player.hand)
-    player.hand = drawCards(nextState, replacedCount)
+    player.hand = drawBalancedRefreshHand(nextState)
     nextState.pendingOverflowDiscard = getOverflowCount(nextState, player)
 
     nextState.logs.unshift({
@@ -471,7 +483,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       playerName: player.name,
       judgeName: nextState.currentJudge.name,
       action: 'refresh',
-      message: `${player.name}は-2ptして手札を入れ替えた。`,
+      message: `${player.name}は-1ptして手札を全て入れ替えた。`,
     })
 
     nextState.usedEscapeThisTurn = true

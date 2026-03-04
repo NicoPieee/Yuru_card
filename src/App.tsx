@@ -49,15 +49,15 @@ function handleCharacterImageError(event: SyntheticEvent<HTMLImageElement>) {
 
 function getFanLayout(total: number) {
   if (total <= 10) {
-    return { width: 142, overlap: 38, angleStep: 2.2, liftStep: 2 }
+    return { width: 150, overlap: 42, angleStep: 2.2, liftStep: 2 }
   }
   if (total <= 12) {
-    return { width: 134, overlap: 46, angleStep: 1.9, liftStep: 1.8 }
+    return { width: 142, overlap: 50, angleStep: 1.9, liftStep: 1.8 }
   }
   if (total <= 14) {
-    return { width: 126, overlap: 54, angleStep: 1.6, liftStep: 1.5 }
+    return { width: 134, overlap: 58, angleStep: 1.6, liftStep: 1.5 }
   }
-  return { width: 118, overlap: 60, angleStep: 1.35, liftStep: 1.2 }
+  return { width: 126, overlap: 64, angleStep: 1.35, liftStep: 1.2 }
 }
 
 function fanCardStyle(index: number, total: number, selected: boolean): CSSProperties {
@@ -249,9 +249,11 @@ function App() {
       ? '配置可能です。置きたいゆるキャラをクリックしてください。'
       : 'その組み合わせは制約違反です（配置不可）。'
     : inOverflowDiscardMode
-      ? `手札が ${pendingDiscardCount} 枚オーバーしています。捨てるカードを選択してください。`
+      ? state.usedEscapeThisTurn
+        ? `入れ替えるカードを ${pendingDiscardCount} 枚選択してください。`
+        : `手札が ${pendingDiscardCount} 枚オーバーしています。捨てるカードを選択してください。`
     : state.usedEscapeThisTurn
-      ? 'ドロー後は、配置するかスキップ。'
+      ? '入れ替え後はスキップしてください。'
       : '配置するカードを選択してください。'
   const winnerNames = state.players.filter((player) => state.winnerIds.includes(player.id)).map((player) => player.name)
   const rankedPlayers = [...state.players].sort((a, b) => b.score - a.score)
@@ -504,7 +506,7 @@ function App() {
                   }}
                   disabled={state.gameOver || state.usedEscapeThisTurn || inOverflowDiscardMode}
                 >
-                  -1ptして2ドロー
+                  2枚入れ替え
                 </button>
 
                 <button
@@ -515,7 +517,7 @@ function App() {
                   }}
                   disabled={state.gameOver || state.usedEscapeThisTurn || inOverflowDiscardMode}
                 >
-                  -2ptして手札入れ替え
+                  全て入れ替え（-1pt）
                 </button>
 
                 {inOverflowDiscardMode && (

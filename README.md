@@ -1,183 +1,122 @@
-# React + TypeScript + Vite
+# Yuru Card
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+ゆるキャラに「どこが」カードと「どういう」カードを組み合わせて配置し、得点を競うターン制カードゲームです。
 
-Currently, two official plugins are available:
+## 起動方法
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+ビルド:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run build
 ```
 
+## 現在の仕様（実装準拠）
 
-# Yuru Card - ゲーム概要（現状）
+### ゲーム設定
+- プレイヤー人数: 2〜4人
+- ラウンド数: 3
+- 手札上限: 10枚
+- 初期手札: 10枚（`where` 5枚 + `descriptor` 5枚）
+- ステージ（都道府県）: 開始時に選択した1県で固定
 
-## 1. ゲーム概要
-**Yuru Card** は、カードを使って進行するカジュアルゲーム。  
-プレイヤーは手札・場札・効果を使って、勝利条件の達成を目指す。
+### カード種類
+- `where`（どこが）カード
+  - 体の部位を指定
+  - その部位に置けるカテゴリ（色/形状/オノマトペ）制約を持つ
+- `descriptor`（どういう）カード
+  - カテゴリ: `color` / `shape` / `onomatopoeia`
+  - テキスト例: 赤い、大きい、ふわふわ など
 
-> このREADMEは「現状の仕様整理用」です。実装に合わせて更新してください。
+### 場のゆるキャラ
+- 常時3体表示
+- 1体に3セット（`where + descriptor`）配置されると完成して退場
+- 退場した枠に新しいゆるキャラを1体補充
+- ゆるキャラが入れ替わるのはこの「完成退場時」のみ
 
----
+### ターンの流れ
+1. 手番プレイヤーが行動を選ぶ
+2. 通常配置を行った場合:
+   - `where` 1枚 + `descriptor` 1枚を選択して対象キャラに配置
+   - 得点計算
+   - 使用2枚を捨て札へ
+   - 2ドロー
+   - ターン終了して次プレイヤーへ
+3. 特殊行動を行った場合:
+   - `2枚入れ替え` または `全て入れ替え（-1pt）`
+   - 同ターン中は通常配置できない
+   - 必要なら手札調整後に `スキップ` してターン終了
 
-## 2. 現在の目的
-- ゲームの基本ループ（開始 → ターン進行 → 終了）を成立させる
-- 最低限のUIでプレイ可能にする
-- ルール・効果・勝敗判定を段階的に追加する
+### 特殊行動
+- `2枚入れ替え`（`TAKE_ESCAPE`）
+  - 手札の先頭2枚を捨て、同枚数引き直す
+  - ポイント減少なし
+  - そのターンに未使用、かつ手札調整待ちがない時のみ実行可能
+- `全て入れ替え（-1pt）`（`REFRESH_HAND`）
+  - 現在手札を全捨てし、`where` 5枚 + `descriptor` 5枚で引き直す
+  - 実行条件は上と同じ
+- `スキップ`（`TAKE_SKIP`）
+  - 上記の特殊行動を使った後のみ実行可能
 
----
+### 手札上限と調整
+- ドローや入れ替え後に手札が10枚を超えたら、超過分を捨てるまで次アクション不可
+- 手札調整完了後、特殊行動ルートの場合は `スキップ` でターンを渡す
 
-## 3. ゲームの流れ（基本）
-1. **ゲーム開始**
-   - デッキをシャッフル
-   - 初期手札を配る
-2. **ターン開始**
-   - ドロー（必要なら）
-   - ターン開始時効果の処理
-3. **メイン行動**
-   - カードを出す
-   - 効果を発動する
-   - 必要に応じて追加行動
-4. **ターン終了**
-   - ターン終了時効果の処理
-   - 次プレイヤーへ交代
-5. **勝敗判定**
-   - 勝利条件を満たした時点で終了
+### 得点ルール
+- 基本点: 1点
+- 審査員の好みカテゴリ一致: 2点
+- 審査員の苦手カテゴリ一致: 0点
+- 不自然ペナルティ: `onomatopoeia` を `目/口/まゆげ` に置くと -1点
+- 最終得点は上記の合算（0未満になり得る）
 
----
+### 審査員
+- 審査員プールは4人
+- 各ターンで1人が審査員として選ばれる
+- 好き/嫌いカテゴリが内部設定され、リアクションと得点に影響
+- 推測情報（好き/嫌い）は反応結果からUIに記録
 
-## 4. 現状の機能（実装チェック）
-- [ ] タイトル/開始画面
-- [ ] ゲーム画面表示
-- [ ] デッキ・手札管理
-- [ ] カード使用処理
-- [ ] 効果処理（単体）
-- [ ] ターン制御
-- [ ] 勝敗判定
-- [ ] リザルト画面
-- [ ] リスタート導線
+### 勝敗
+- 最終ラウンド終了後にゲーム終了
+- 最高得点プレイヤーが勝利
+- 同点は同時優勝
 
----
+## UI/演出（現状）
 
-## 5. 画面構成（想定）
-- **タイトル画面**
-  - Start / Option / Quit
-- **ゲーム画面**
-  - プレイヤー情報（HP/スコアなど）
-  - 手札エリア
-  - 場エリア
-  - ログ表示
-- **リザルト画面**
-  - 勝者表示
-  - 再戦 / タイトルへ戻る
+- スタート画面
+  - 地方、県（ステージ）、プレイヤー人数を選択して開始
+- ゲーム画面
+  - 左: 審査員プール、スコア、アクション
+  - 右上: ラウンド/ステージ/手番/審査員
+  - 中央: 場のゆるキャラ
+  - 下: 扇状に並ぶ手札
+- 演出
+  - 配置成功バナー
+  - 審査員リアクション（吹き出し + バースト）
+  - リアクション後の「〜のターン」表示
+  - 新規補充ゆるキャラの登場アニメーション
 
----
+## データ/ロジック構成
 
-## 6. ルール詳細（暫定）
-- 手札上限: `TODO`
-- 1ターンの行動回数: `TODO`
-- カードコスト制: `TODO`
-- 勝利条件:
-  - `TODO: 例）相手HPを0にする / 目標スコア達成`
+- `src/game/types.ts`
+  - 型定義（`GameState`, `GameAction`, カード/審査員/ログ）
+- `src/game/data.ts`
+  - カテゴリ、部位、語彙、審査員生成
+- `src/game/yuruData.ts`
+  - 都道府県とゆるキャラ画像データの読み込み
+- `src/game/engine.ts`
+  - ゲーム進行本体（初期化、行動解決、得点、ターン遷移）
+- `src/App.tsx`
+  - UI状態管理と描画、ユーザー操作の dispatch
 
----
+## 既知の注意点
 
-## 7. データ設計メモ（暫定）
+- `eslint` は現状一部ルールでエラーが残る（`react-hooks/set-state-in-effect` など）。
+- `build` は通る状態。
 
-### Card
-- id
-- name
-- type
-- cost
-- effect
-- rarity（任意）
+## 更新履歴
 
-### Player
-- id
-- hp / score
-- hand[]
-- deck[]
-- discard[]
-
-### GameState
-- currentTurnPlayer
-- phase
-- boardState
-- log[]
-
----
-
-## 8. 今後のタスク
-1. 仕様FIX（勝利条件・カードタイプ）
-2. 最小プレイアブル版の完成
-3. バランス調整
-4. 演出・SE・UI改善
-5. セーブ/ロード（必要なら）
-
----
-
-## 9. 更新履歴
-- 2026-03-04: 初版作成
+- 2026-03-04: 現行実装に合わせてREADMEを全面更新

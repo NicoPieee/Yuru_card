@@ -89,7 +89,7 @@ export interface TurnLog {
   round: number
   playerName: string
   judgeName: string
-  action: 'placement' | 'escape' | 'skip' | 'discard' | 'system'
+  action: 'placement' | 'escape' | 'refresh' | 'skip' | 'discard' | 'system'
   message: string
 }
 
@@ -143,6 +143,7 @@ export type GameAction =
     }
   }
   | { type: 'TAKE_ESCAPE' }
+  | { type: 'REFRESH_HAND' }
   | { type: 'TAKE_SKIP' }
   | {
     type: 'DISCARD_OVERFLOW'

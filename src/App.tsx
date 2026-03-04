@@ -194,10 +194,13 @@ function App() {
 
     let burstTimer: number | undefined
     let reactionHideTimer: number | undefined
+    let turnStartTimer: number | undefined
+    let turnStartHideTimer: number | undefined
 
     setCheerBanner(state.lastPlacementCheer.message)
     setReactionPopup(null)
     setReactionBurst(null)
+    setTurnStartMessage(null)
 
     const cheerTimer = window.setTimeout(() => {
       setCheerBanner(null)
@@ -213,6 +216,14 @@ function App() {
         reactionHideTimer = window.setTimeout(() => {
           setReactionPopup(null)
         }, 3700)
+
+        const nextPlayer = state.players[state.currentPlayerIndex]
+        turnStartTimer = window.setTimeout(() => {
+          setTurnStartMessage(`${nextPlayer.name}のターン`)
+          turnStartHideTimer = window.setTimeout(() => {
+            setTurnStartMessage(null)
+          }, 2000)
+        }, 3700)
       }
     }, 1800)
 
@@ -224,29 +235,14 @@ function App() {
       if (reactionHideTimer) {
         window.clearTimeout(reactionHideTimer)
       }
-    }
-  }, [state.lastPlacementCheer?.id, state.lastJudgeReaction])
-
-  // 審査員リアクション終了後にターン開始演出を表示
-  const previousJudgeReactionRef = useRef<typeof state.lastJudgeReaction>(state.lastJudgeReaction)
-
-  useEffect(() => {
-    const hadReaction = previousJudgeReactionRef.current !== null
-    const reactionEnded = state.lastJudgeReaction === null
-
-    if (hadReaction && reactionEnded) {
-      const lastLog = state.logs[0]
-      if (lastLog && lastLog.action === 'system' && lastLog.message.includes('のターン')) {
-        setTurnStartMessage(lastLog.message)
-        const timer = window.setTimeout(() => {
-          setTurnStartMessage(null)
-        }, 2000)
-        return () => window.clearTimeout(timer)
+      if (turnStartTimer) {
+        window.clearTimeout(turnStartTimer)
+      }
+      if (turnStartHideTimer) {
+        window.clearTimeout(turnStartHideTimer)
       }
     }
-
-    previousJudgeReactionRef.current = state.lastJudgeReaction
-  }, [state.lastJudgeReaction, state.logs[0]?.id])
+  }, [state.currentPlayerIndex, state.lastJudgeReaction, state.lastPlacementCheer, state.players])
 
   const actionMessage = selectedWhere && selectedDescriptor
     ? pairValid

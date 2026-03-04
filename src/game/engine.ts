@@ -454,6 +454,32 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     return nextState
   }
 
+  if (action.type === 'REFRESH_HAND') {
+    if (nextState.usedEscapeThisTurn || nextState.pendingOverflowDiscard > 0) {
+      return state
+    }
+
+    player.score -= 2
+    const replacedCount = player.hand.length
+    nextState.discardPile.push(...player.hand)
+    player.hand = drawCards(nextState, replacedCount)
+    nextState.pendingOverflowDiscard = getOverflowCount(nextState, player)
+
+    nextState.logs.unshift({
+      id: `log-${nextState.logs.length + 1}`,
+      round: nextState.round,
+      playerName: player.name,
+      judgeName: nextState.currentJudge.name,
+      action: 'refresh',
+      message: `${player.name}は-2ptして手札を入れ替えた。`,
+    })
+
+    nextState.usedEscapeThisTurn = true
+    nextState.lastJudgeReaction = null
+    nextState.lastPlacementCheer = null
+    return nextState
+  }
+
   if (action.type === 'TAKE_SKIP') {
     if (!nextState.usedEscapeThisTurn || nextState.pendingOverflowDiscard > 0) {
       return state

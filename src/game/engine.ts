@@ -271,7 +271,14 @@ function advanceTurn(state: GameState) {
       })
       return
     }
-    state.currentPrefecture = state.roundPrefectures[state.round - 1]
+    const nextPrefecture = state.roundPrefectures[state.round - 1]
+    const prefectureChanged = state.currentPrefecture !== nextPrefecture
+    state.currentPrefecture = nextPrefecture
+
+    if (prefectureChanged) {
+      state.fieldCharacters = []
+      refillCharacterField(state)
+    }
   } else {
     state.currentPlayerIndex += 1
     state.turnInRound += 1
@@ -292,6 +299,8 @@ function initPlayers(playerCount: number): PlayerState[] {
 }
 
 function refillCharacterField(state: GameState) {
+  state.fieldCharacters = state.fieldCharacters.filter((character) => character.prefecture === state.currentPrefecture)
+
   while (state.fieldCharacters.length < FIELD_SIZE) {
     state.fieldCharacters.push(nextCharacterFromPrefecture(state, state.currentPrefecture))
   }

@@ -28,7 +28,7 @@ function buildAnnotationDeck(seed: string): AnnotationCard[] {
   const deck: AnnotationCard[] = []
   let serial = 1
 
-  for (let copy = 0; copy < 4; copy += 1) {
+  for (let copy = 0; copy < 2; copy += 1) {
     for (const bodyPart of getBodyParts()) {
       deck.push({
         id: makeCardId('where', serial),
@@ -129,6 +129,10 @@ function getPlayer(state: GameState): PlayerState {
 function chooseJudge(seed: string, turnKey: string, pool: Agent[]): Agent {
   const rng = createSeededRng(`${seed}:judge:${turnKey}`)
   return pool[rng.int(pool.length)]
+}
+
+function buildTurnKey(state: Pick<GameState, 'round' | 'currentPlayerIndex' | 'turnInRound'>): string {
+  return `${state.round}-${state.currentPlayerIndex}-${state.turnInRound}`
 }
 
 function buildRoundPrefectures(seed: string, maxRounds: number): string[] {
@@ -267,12 +271,13 @@ function advanceTurn(state: GameState) {
       })
       return
     }
+    state.currentPrefecture = state.roundPrefectures[state.round - 1]
   } else {
     state.currentPlayerIndex += 1
     state.turnInRound += 1
   }
 
-  const turnKey = `${state.round}-${state.currentPlayerIndex}-${state.logs.length}`
+  const turnKey = buildTurnKey(state)
   state.currentJudge = chooseJudge(state.config.seed, turnKey, state.judgePool)
   state.usedEscapeThisTurn = false
 }
@@ -292,8 +297,11 @@ function refillCharacterField(state: GameState) {
   }
 }
 
-export function createInitialState(seed: string, playerCount: number): GameState {
+export function createInitialState(seed: string, playerCount: number, startPrefecture?: string): GameState {
   const roundPrefectures = buildRoundPrefectures(seed, DEFAULT_MAX_ROUNDS)
+  if (startPrefecture && REAL_PREFECTURE_CHARACTERS[startPrefecture]) {
+    roundPrefectures[0] = startPrefecture
+  }
   const { pools, cursor } = buildCharacterPools(seed)
   const judgePool = buildAgents(4)
   const judgeInsights = judgePool.reduce<Record<string, JudgePreferenceInsight>>((acc, judge) => {
@@ -338,7 +346,7 @@ export function createInitialState(seed: string, playerCount: number): GameState
   }
 
   refillCharacterField(state)
-  state.currentJudge = chooseJudge(seed, '1-0-0', state.judgePool)
+  state.currentJudge = chooseJudge(seed, buildTurnKey(state), state.judgePool)
   state.logs.unshift({
     id: 'log-1',
     round: 1,
@@ -357,7 +365,7 @@ function isValidPair(whereCard: WhereCard, descriptorCard: DescriptorCard): bool
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
   if (action.type === 'RESET_GAME') {
-    return createInitialState(action.payload.seed, action.payload.playerCount)
+    return createInitialState(action.payload.seed, action.payload.playerCount, action.payload.prefecture)
   }
 
   if (state.gameOver) {
@@ -486,7 +494,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   const placementFxId = `fx-${nextState.logs.length + 1}`
   nextState.lastPlacementCheer = {
     id: placementFxId,
-    message: `「どこが:${whereCard.bodyPart}」「どういう:${descriptorCard.text}」かわいい！`,
+    message: `「${whereCard.bodyPart}」「${descriptorCard.text}」かわいい！`,
   }
   const judgeReaction = buildJudgeReaction(nextState.currentJudge, descriptorCard, naturalnessPenalty)
   nextState.lastJudgeReaction = judgeReaction

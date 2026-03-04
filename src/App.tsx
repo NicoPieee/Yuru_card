@@ -2,10 +2,17 @@ import { useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, t
 import './App.css'
 import { canPlace, createInitialState, gameReducer } from './game/engine'
 import { CATEGORY_LABEL } from './game/data'
+import { AVAILABLE_PREFECTURES, AVAILABLE_REGIONS, PREFECTURES_BY_REGION, REAL_PREFECTURE_CHARACTERS, getRegionByPrefecture } from './game/yuruData'
 import type { AnnotationCard, Category, DescriptorCard, JudgeReactionTone, WhereCard } from './game/types'
 
 const DEFAULT_SEED = 'yuru-2026'
 const CHARACTER_FALLBACK_IMAGE = '/image.png'
+const START_SCREEN_ROW_COUNT = 4
+const START_SCREEN_IMAGES_PER_ROW = 18
+const START_SCREEN_IMAGE_POOL = Object.values(REAL_PREFECTURE_CHARACTERS)
+  .flatMap((characters) => characters.map((character) => character.imagePath))
+const DEFAULT_PREFECTURE = AVAILABLE_PREFECTURES[0] ?? ''
+const DEFAULT_REGION = getRegionByPrefecture(DEFAULT_PREFECTURE)
 
 function isWhereCard(card: AnnotationCard): card is WhereCard {
   return card.type === 'where'
@@ -69,6 +76,10 @@ function fanCardStyle(index: number, total: number, selected: boolean): CSSPrope
 function App() {
   const [seedInput, setSeedInput] = useState(DEFAULT_SEED)
   const [playerCount, setPlayerCount] = useState(2)
+  const [selectedRegion, setSelectedRegion] = useState(DEFAULT_REGION)
+  const [selectedPrefecture, setSelectedPrefecture] = useState(DEFAULT_PREFECTURE)
+  const [showStartScreen, setShowStartScreen] = useState(true)
+  const [showGameTutorial, setShowGameTutorial] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [selectedWhereId, setSelectedWhereId] = useState<string | null>(null)
   const [selectedDescriptorId, setSelectedDescriptorId] = useState<string | null>(null)
@@ -82,6 +93,32 @@ function App() {
   const previousFieldIdsRef = useRef<string[]>([])
 
   const [state, dispatch] = useReducer(gameReducer, null, () => createInitialState(DEFAULT_SEED, 2))
+
+  const regionOptions = useMemo(() => [...AVAILABLE_REGIONS], [])
+
+  const prefectureOptions = useMemo(
+    () => [...(PREFECTURES_BY_REGION[selectedRegion] ?? [])],
+    [selectedRegion],
+  )
+
+  useEffect(() => {
+    if (prefectureOptions.length === 0) {
+      return
+    }
+    if (!prefectureOptions.includes(selectedPrefecture)) {
+      setSelectedPrefecture(prefectureOptions[0])
+    }
+  }, [prefectureOptions, selectedPrefecture])
+
+  const startScreenRows = useMemo(() => {
+    const source = START_SCREEN_IMAGE_POOL.length > 0 ? START_SCREEN_IMAGE_POOL : [CHARACTER_FALLBACK_IMAGE]
+    return Array.from({ length: START_SCREEN_ROW_COUNT }, (_, rowIndex) => {
+      return Array.from({ length: START_SCREEN_IMAGES_PER_ROW }, (_, imageIndex) => {
+        const sourceIndex = (rowIndex * START_SCREEN_IMAGES_PER_ROW + imageIndex) % source.length
+        return source[sourceIndex]
+      })
+    })
+  }, [])
 
   const currentPlayer = state.players[state.currentPlayerIndex]
   const hand = currentPlayer.hand
@@ -202,8 +239,16 @@ function App() {
   const winnerNames = state.players.filter((player) => state.winnerIds.includes(player.id)).map((player) => player.name)
   const rankedPlayers = [...state.players].sort((a, b) => b.score - a.score)
 
-  const resetGame = () => {
-    dispatch({ type: 'RESET_GAME', payload: { seed: seedInput || DEFAULT_SEED, playerCount } })
+  const resetGame = (showTutorial = true) => {
+    dispatch({
+      type: 'RESET_GAME',
+      payload: {
+        seed: seedInput || DEFAULT_SEED,
+        playerCount,
+        prefecture: selectedPrefecture,
+      },
+    })
+    setShowGameTutorial(showTutorial)
     setSelectedWhereId(null)
     setSelectedDescriptorId(null)
     setSelectedDiscardIds([])
@@ -219,8 +264,104 @@ function App() {
     setSeedInput(`yuru-${randomPart}-${timePart}`)
   }
 
+  const backToStartScreen = () => {
+    setShowStartScreen(true)
+    setShowGameTutorial(false)
+    setSettingsOpen(false)
+    setSelectedWhereId(null)
+    setSelectedDescriptorId(null)
+    setSelectedDiscardIds([])
+    setCheerBanner(null)
+    setReactionPopup(null)
+    setReactionBurst(null)
+  }
+
+  const startGame = () => {
+    resetGame(true)
+    setShowStartScreen(false)
+  }
+
   return (
     <div className="app">
+      {showStartScreen && (
+        <div className="start-screen" aria-label="スタート画面">
+          <div className="start-screen-bg" aria-hidden="true">
+            {startScreenRows.map((rowImages, rowIndex) => (
+              <div
+                key={`start-row-${rowIndex}`}
+                className={`start-screen-row ${rowIndex % 2 === 0 ? 'forward' : 'reverse'}`}
+                style={{
+                  '--start-row-duration': `${44 + rowIndex * 6}s`,
+                  '--start-row-delay': `-${rowIndex * 5}s`,
+                } as CSSProperties}
+              >
+                {[...rowImages, ...rowImages].map((imagePath, imageIndex) => (
+                  <div key={`start-image-${rowIndex}-${imageIndex}`} className="start-screen-image-chip">
+                    <img
+                      className="start-screen-image"
+                      src={imagePath}
+                      alt="ゆるキャラ"
+                      loading="lazy"
+                      onError={handleCharacterImageError}
+                    />
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          <div className="start-screen-card">
+            <h1>Yuru Card</h1>
+            <p className="start-screen-caption">地方 → 県（ステージ） → プレイヤー数の順に選んで開始しよう！</p>
+            <div className="controls">
+              <label>
+                地方
+                <select value={selectedRegion} onChange={(e) => setSelectedRegion(e.target.value)}>
+                  {regionOptions.map((region) => (
+                    <option key={region} value={region}>{region}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                県（ステージ）
+                <select value={selectedPrefecture} onChange={(e) => setSelectedPrefecture(e.target.value)}>
+                  {prefectureOptions.map((prefecture) => (
+                    <option key={prefecture} value={prefecture}>{prefecture}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                プレイヤー数
+                <select value={playerCount} onChange={(e) => setPlayerCount(Number(e.target.value))}>
+                  <option value={2}>2</option>
+                  <option value={3}>3</option>
+                  <option value={4}>4</option>
+                </select>
+              </label>
+              <button type="button" onClick={startGame}>ゲーム開始</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showGameTutorial && !showStartScreen && (
+        <section className="tutorial-overlay" role="dialog" aria-modal="true" aria-label="遊び方ガイド">
+          <div className="tutorial-card">
+            <h2>かんたん遊び方ガイド</h2>
+            <ol className="tutorial-steps">
+              <li>手札から「どこが」1枚 + 「どういう」1枚を選ぶ</li>
+              <li>場のゆるキャラをクリックして配置し、点数を獲得する</li>
+              <li>毎ターン2ドロー。手札が多すぎると捨て札調整が必要</li>
+              <li>ラウンド終了時、合計点が高いプレイヤーが有利</li>
+            </ol>
+            <div className="tutorial-ui-note">
+              左: 審査員とスコア / 右上: ラウンド情報 / 下: 手札と配置先
+            </div>
+            <button type="button" onClick={() => setShowGameTutorial(false)}>OK、はじめる</button>
+          </div>
+        </section>
+      )}
+
       {cheerBanner && <div className="fx-banner fx-cheer">{cheerBanner}</div>}
       {reactionBurst && <div className={`fx-banner fx-reaction tone-${reactionTone}`}>{reactionBurst}</div>}
       {state.gameOver && (
@@ -237,7 +378,7 @@ function App() {
                 </div>
               ))}
             </div>
-            <button type="button" onClick={resetGame}>もう一回あそぶ</button>
+            <button type="button" onClick={() => resetGame(true)}>もう一回あそぶ</button>
           </div>
         </section>
       )}
@@ -286,9 +427,15 @@ function App() {
                   </select>
                 </label>
                 <button
-                  onClick={resetGame}
+                  onClick={() => resetGame(true)}
                 >
                   新規ゲーム
+                </button>
+                <button
+                  type="button"
+                  onClick={backToStartScreen}
+                >
+                  スタート画面に戻る
                 </button>
               </div>
             </section>

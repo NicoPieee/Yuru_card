@@ -7,21 +7,21 @@ export const CATEGORY_LABEL: Record<Category, string> = {
 }
 
 export const DESCRIPTORS: Record<Category, string[]> = {
-  color: ['赤色の', '青色の', '黄色の', '緑色の', 'ピンク色の', '紫色の', 'オレンジ色の', '白色の', '黒色の'],
+  color: ['赤い', '青い', '黄色い', '緑色', 'ピンク', '紫色', 'オレンジ', '白い', '黒い'],
   shape: ['大きい', '小さい', '長い', '短い', '細い', '太い', '丸い'],
-  onomatopoeia: ['ふわふわ', 'もこもこ', 'もふもふ', 'つるつる', 'きらきら', 'ころころ', 'ぽてぽて'],
+  onomatopoeia: ['ふわふわ', 'もこもこ', 'もふもふ', 'つやつや', 'きらきら', 'ころころ', 'ぽてぽて'],
 }
 
 export const BODY_PART_RULES: Record<BodyPart, Category[]> = {
-  顔: ['color', 'shape', 'onomatopoeia'],
-  目: ['color', 'shape'],
+  顔: ['color', 'shape'],
+  目: ['color'],
   ほっぺ: ['color', 'shape', 'onomatopoeia'],
-  口: ['color', 'shape'],
-  まゆげ: ['color', 'shape'],
+  口: ['color'],
+  まゆげ: ['color'],
   体: ['color', 'shape', 'onomatopoeia'],
   おなか: ['color', 'shape', 'onomatopoeia'],
-  手: ['color', 'shape', 'onomatopoeia'],
-  足: ['color', 'shape'],
+  手: ['shape', 'onomatopoeia'],
+  足: ['shape'],
   服: ['color', 'shape', 'onomatopoeia'],
   帽子: ['color', 'shape', 'onomatopoeia'],
 }
@@ -32,7 +32,7 @@ export const PREFECTURE_CHARACTERS: Record<string, string[]> = {
   もこもこ県: ['もこた', 'ぽよんぬ', 'ふわち', 'ころたん', 'ぷにべえ', 'もふすけ', 'こっとん', 'ぬくみ', 'ましゅまろ', 'ぽてん'],
 }
 
-const AGENT_NAMES = ['審査員1', '審査員2', '審査員3', '審査員4', '審査員5', '審査員6']
+const AGENT_NAMES = ['さくら審査員', 'あおい審査員', 'もも審査員', 'くろ審査員', 'みどり審査員', 'ゆず審査員']
 
 export const CATEGORY_LIST: Category[] = ['color', 'shape', 'onomatopoeia']
 

@@ -1,6 +1,6 @@
-export type Category = 'color' | 'shape' | 'onomatopoeia'
-
 import type { YuruCharacterInfo } from './yuruData'
+
+export type Category = 'color' | 'shape' | 'onomatopoeia'
 
 export type CardType = 'where' | 'descriptor'
 
@@ -133,7 +133,7 @@ export type PlayResult = {
 }
 
 export type GameAction =
-  | { type: 'RESET_GAME'; payload: { seed: string; playerCount: number } }
+  | { type: 'RESET_GAME'; payload: { seed: string; playerCount: number; prefecture?: string } }
   | {
     type: 'PLAY_PLACEMENT'
     payload: {

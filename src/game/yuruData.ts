@@ -48,3 +48,31 @@ export const REAL_PREFECTURE_CHARACTERS = Object.fromEntries(
 )
 
 export const AVAILABLE_PREFECTURES = Object.keys(REAL_PREFECTURE_CHARACTERS)
+
+const REGION_PREFECTURE_ORDER: Record<string, string[]> = {
+    '北海道・東北': ['北海道', '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県'],
+    '関東': ['茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県'],
+    '中部': ['新潟県', '富山県', '石川県', '福井県', '山梨県', '長野県', '岐阜県', '静岡県', '愛知県'],
+    '近畿': ['三重県', '滋賀県', '京都府', '大阪府', '兵庫県', '奈良県', '和歌山県'],
+    '中国': ['鳥取県', '島根県', '岡山県', '広島県', '山口県'],
+    '四国': ['徳島県', '香川県', '愛媛県', '高知県'],
+    '九州・沖縄': ['福岡県', '佐賀県', '長崎県', '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県'],
+}
+
+const availablePrefectureSet = new Set(AVAILABLE_PREFECTURES)
+
+export const PREFECTURES_BY_REGION = Object.fromEntries(
+    Object.entries(REGION_PREFECTURE_ORDER)
+        .map(([region, prefectures]) => [
+            region,
+            prefectures.filter((prefecture) => availablePrefectureSet.has(prefecture)),
+        ])
+        .filter(([, prefectures]) => (prefectures as string[]).length > 0)
+) as Record<string, string[]>
+
+export const AVAILABLE_REGIONS = Object.keys(PREFECTURES_BY_REGION)
+
+export function getRegionByPrefecture(prefecture: string): string {
+    const match = Object.entries(PREFECTURES_BY_REGION).find(([, prefectures]) => prefectures.includes(prefecture))
+    return match?.[0] ?? AVAILABLE_REGIONS[0] ?? ''
+}
